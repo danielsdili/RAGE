@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Mlátička 2D</title>
+  <title>Mlátička 2D - NYC Sunset</title>
 
   <style>
     body {
@@ -14,10 +14,7 @@
       font-family: Arial, sans-serif;
     }
 
-    canvas {
-      display: block;
-      background: #eee;
-    }
+    canvas { display: block; }
 
     #controls {
       position: fixed;
@@ -30,7 +27,7 @@
       align-items: center;
       padding: 15px;
       box-sizing: border-box;
-      background: rgba(0,0,0,0.65);
+      background: rgba(0,0,0,0.55);
     }
 
     .left-controls, .right-controls {
@@ -53,9 +50,7 @@
       user-select: none;
     }
 
-    .btn:active {
-      background: rgba(255,255,255,0.55);
-    }
+    .btn:active { background: rgba(255,255,255,0.55); }
 
     .big-btn {
       width: 120px;
@@ -88,24 +83,37 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   }
-
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
 
   const controlsHeight = 160;
-  let groundY = canvas.height - controlsHeight - 70;
+
+  const camera = {
+    x: 0,
+    y: 0,
+    zoom: 0.72,
+    shake: 0
+  };
+
+  const world = {
+    width: 3400,
+    height: 900
+  };
+
+  let groundY = world.height - 180;
 
   let slowMotionTimer = 0;
 
   const gravity = 1;
   const jumpStrength = -20;
 
-  const input = {
-    left: false,
-    right: false,
-    jump: false,
-    attack: false
-  };
+  // SCORE + COMBO
+  let score = 0;
+  let combo = 0;
+  let comboTimer = 0; // když dojde na 0, combo reset
+  let koTextTimer = 0;
+
+  const input = { left:false, right:false, jump:false, attack:false };
 
   function setButtonEvents(button, keyName) {
     button.addEventListener("touchstart", (e) => {
@@ -130,42 +138,86 @@
   setButtonEvents(document.getElementById("attackBtn"), "attack");
 
   const player = {
-    x: 150,
-    y: groundY - 80,
+    x: 200,
+    y: groundY - 120,
     width: 55,
-    height: 90,
+    height: 120,
     speed: 7,
     velocityY: 0,
     onGround: true,
     hp: 100,
     facing: 1,
-    attackCooldown: 0
+    attackCooldown: 0,
+    attackAnim: 0,
+    walkAnim: 0
   };
 
-  // Více nepřátel
   const enemies = [];
 
-  function spawnEnemy() {
+  function createEnemy(type) {
     const side = Math.random() < 0.5 ? "left" : "right";
 
-    enemies.push({
-      x: side === "left" ? -50 : canvas.width + 50,
-      y: groundY - 80,
+    if (type === "fast") {
+      return {
+        type: "fast",
+        x: side === "left" ? 40 : world.width - 80,
+        y: groundY - 120,
+        width: 50,
+        height: 115,
+        hp: 35,
+        maxHp: 35,
+        speed: 4.5,
+        alive: true,
+        hitCooldown: 0,
+        walkAnim: Math.random() * 10,
+        color: "#0066ff"
+      };
+    }
+
+    if (type === "tank") {
+      return {
+        type: "tank",
+        x: side === "left" ? 40 : world.width - 80,
+        y: groundY - 140,
+        width: 75,
+        height: 140,
+        hp: 120,
+        maxHp: 120,
+        speed: 1.3,
+        alive: true,
+        hitCooldown: 0,
+        walkAnim: Math.random() * 10,
+        color: "#663300"
+      };
+    }
+
+    // normal
+    return {
+      type: "normal",
+      x: side === "left" ? 40 : world.width - 80,
+      y: groundY - 120,
       width: 55,
-      height: 90,
-      hp: 50,
-      speed: 2 + Math.random() * 1.5,
+      height: 120,
+      hp: 60,
+      maxHp: 60,
+      speed: 2.6,
       alive: true,
-      hitCooldown: 0
-    });
+      hitCooldown: 0,
+      walkAnim: Math.random() * 10,
+      color: "#111"
+    };
   }
 
-  // spawn start
-  for (let i = 0; i < 4; i++) {
-    spawnEnemy();
+  function spawnEnemy() {
+    const r = Math.random();
+
+    if (r < 0.20) enemies.push(createEnemy("tank"));
+    else if (r < 0.55) enemies.push(createEnemy("fast"));
+    else enemies.push(createEnemy("normal"));
   }
 
-  // Komiksové částice (kečup džem efekt)
+  for (let i = 0; i < 6; i++) spawnEnemy();
+
   const particles = [];
 
   function spawnSplash(x, y, amount = 40) {
@@ -190,15 +242,34 @@
     );
   }
 
+  function addScore(enemyType) {
+    let base = 100;
+
+    if (enemyType === "fast") base = 140;
+    if (enemyType === "tank") base = 220;
+
+    combo++;
+    comboTimer = 180; // 3 sekundy
+
+    const comboBonus = combo * 20;
+    score += base + comboBonus;
+
+    // KO efekt
+    koTextTimer = 40;
+    camera.shake = 20;
+  }
+
   function playerAttack() {
     if (player.attackCooldown > 0) return;
+
     player.attackCooldown = 22;
+    player.attackAnim = 12;
 
     const batHitbox = {
-      x: player.facing === 1 ? player.x + player.width : player.x - 70,
-      y: player.y + 20,
-      width: 70,
-      height: 45
+      x: player.facing === 1 ? player.x + player.width : player.x - 90,
+      y: player.y + 35,
+      width: 90,
+      height: 55
     };
 
     enemies.forEach(enemy => {
@@ -207,73 +278,91 @@
       if (rectsCollide(batHitbox, enemy)) {
         enemy.hp -= 25;
 
-        // Knockback
-        enemy.x += player.facing * 40;
+        // knockback
+        enemy.x += player.facing * (enemy.type === "tank" ? 25 : 55);
 
-        // šplích (komiks)
-        spawnSplash(enemy.x + enemy.width / 2, enemy.y + 40, 25);
+        spawnSplash(enemy.x + enemy.width / 2, enemy.y + 60, 18);
 
         if (enemy.hp <= 0) {
           enemy.alive = false;
+          spawnSplash(enemy.x + enemy.width / 2, enemy.y + 30, 120);
 
-          // mega splash
-          spawnSplash(enemy.x + enemy.width / 2, enemy.y + 20, 120);
+          slowMotionTimer = 45;
 
-          // slowmotion
-          slowMotionTimer = 50;
+          addScore(enemy.type);
 
-          // po chvíli respawn nový nepřítel
-          setTimeout(() => {
-            spawnEnemy();
-          }, 800);
+          setTimeout(() => spawnEnemy(), 900);
         }
       }
     });
   }
 
-  function update() {
-    groundY = canvas.height - controlsHeight - 70;
+  function updateCamera() {
+    camera.x = player.x - (canvas.width / camera.zoom) / 2;
+    camera.y = 0;
 
-    let timeScale = slowMotionTimer > 0 ? 0.4 : 1;
+    if (camera.x < 0) camera.x = 0;
+    if (camera.x > world.width - (canvas.width / camera.zoom)) {
+      camera.x = world.width - (canvas.width / camera.zoom);
+    }
+
+    // shake
+    if (camera.shake > 0) camera.shake--;
+  }
+
+  function update() {
+    let timeScale = slowMotionTimer > 0 ? 0.45 : 1;
     if (slowMotionTimer > 0) slowMotionTimer--;
 
     if (player.attackCooldown > 0) player.attackCooldown -= 1 * timeScale;
+    if (player.attackAnim > 0) player.attackAnim -= 1 * timeScale;
 
-    // Pohyb hráče
+    if (koTextTimer > 0) koTextTimer -= 1 * timeScale;
+
+    // combo timer
+    if (comboTimer > 0) comboTimer -= 1 * timeScale;
+    if (comboTimer <= 0) combo = 0;
+
+    // pohyb hráče
+    let moving = false;
+
     if (input.left) {
       player.x -= player.speed * timeScale;
       player.facing = -1;
+      moving = true;
     }
     if (input.right) {
       player.x += player.speed * timeScale;
       player.facing = 1;
+      moving = true;
     }
 
-    // Skok
+    if (moving) player.walkAnim += 0.25 * timeScale;
+    else player.walkAnim *= 0.9;
+
+    // skok
     if (input.jump && player.onGround) {
       player.velocityY = jumpStrength;
       player.onGround = false;
     }
 
-    // Útok
+    // útok
     if (input.attack) playerAttack();
 
-    // Gravitace
+    // gravitace
     player.velocityY += gravity * timeScale;
     player.y += player.velocityY * timeScale;
 
-    // Zem
+    // zem
     if (player.y + player.height >= groundY) {
       player.y = groundY - player.height;
       player.velocityY = 0;
       player.onGround = true;
     }
 
-    // Okraje
+    // hranice světa
     if (player.x < 0) player.x = 0;
-    if (player.x + player.width > canvas.width) {
-      player.x = canvas.width - player.width;
-    }
+    if (player.x + player.width > world.width) player.x = world.width - player.width;
 
     // AI nepřátel
     enemies.forEach(enemy => {
@@ -281,25 +370,36 @@
 
       if (enemy.hitCooldown > 0) enemy.hitCooldown -= 1 * timeScale;
 
-      if (enemy.x < player.x - 10) enemy.x += enemy.speed * timeScale;
-      if (enemy.x > player.x + 10) enemy.x -= enemy.speed * timeScale;
+      let emoving = false;
 
-      // Útok když blízko (bez zbraní, jen strkání)
+      if (enemy.x < player.x - 10) {
+        enemy.x += enemy.speed * timeScale;
+        emoving = true;
+      }
+      if (enemy.x > player.x + 10) {
+        enemy.x -= enemy.speed * timeScale;
+        emoving = true;
+      }
+
+      if (emoving) enemy.walkAnim += 0.18 * timeScale;
+
       const dist = Math.abs(enemy.x - player.x);
 
-      if (dist < 60 && enemy.hitCooldown <= 0) {
-        player.hp -= 5;
-        enemy.hitCooldown = 60;
+      // útok nepřítele
+      if (dist < 70 && enemy.hitCooldown <= 0) {
+        let dmg = 5;
+        if (enemy.type === "fast") dmg = 4;
+        if (enemy.type === "tank") dmg = 9;
 
-        // mini splash na hráči (komiks)
-        spawnSplash(player.x + player.width / 2, player.y + 50, 12);
+        player.hp -= dmg;
+        enemy.hitCooldown = enemy.type === "fast" ? 50 : 75;
 
-        // knockback hráče
+        spawnSplash(player.x + player.width / 2, player.y + 70, 8);
         player.x += (enemy.x < player.x ? 25 : -25);
       }
     });
 
-    // Particles update
+    // particles
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
       p.vy += 0.6 * timeScale;
@@ -316,68 +416,186 @@
       if (p.life <= 0) particles.splice(i, 1);
     }
 
-    // GAME OVER jednoduchý
-    if (player.hp <= 0) {
-      player.hp = 0;
+    if (player.hp <= 0) player.hp = 0;
+
+    updateCamera();
+  }
+
+  // --- DRAW ---
+
+  function drawNYBackground() {
+    const sky = ctx.createLinearGradient(0, 0, 0, world.height);
+    sky.addColorStop(0, "#ff914d");
+    sky.addColorStop(0.5, "#ff4f7b");
+    sky.addColorStop(1, "#2a1d5f");
+
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, world.width, world.height);
+
+    ctx.fillStyle = "rgba(255, 220, 120, 0.9)";
+    ctx.beginPath();
+    ctx.arc(650, 200, 110, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    for (let i = 0; i < 90; i++) {
+      const bx = i * 38;
+      const bh = 200 + Math.random() * 260;
+      ctx.fillRect(bx, groundY - bh, 34, bh);
+    }
+
+    ctx.fillStyle = "rgba(255,255,180,0.45)";
+    for (let i = 0; i < 250; i++) {
+      const wx = Math.random() * world.width;
+      const wy = (groundY - 450) + Math.random() * 350;
+      ctx.fillRect(wx, wy, 4, 4);
     }
   }
 
-  function drawHealthBar(x, y, w, h, hp, maxHp) {
-    ctx.fillStyle = "black";
-    ctx.fillRect(x, y, w, h);
-
-    const fill = Math.max(0, (hp / maxHp) * w);
-
-    ctx.fillStyle = "lime";
-    ctx.fillRect(x, y, fill, h);
+  function drawShadow(x, y, w) {
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.beginPath();
+    ctx.ellipse(x + w/2, y + (w > 60 ? 138 : 118), 22 + (w > 60 ? 8 : 0), 8, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  function drawCharacter(entity, shirtColor, walkAnim) {
+    const x = entity.x;
+    const y = entity.y;
+    const w = entity.width;
+    const h = entity.height;
 
-    // pozadí
-    ctx.fillStyle = "#d9d9d9";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const legSwing = Math.sin(walkAnim) * 6;
 
-    // zem
-    ctx.fillStyle = "green";
-    ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+    drawShadow(x, y, w);
 
-    // hráč
-    ctx.fillStyle = "red";
-    ctx.fillRect(player.x, player.y, player.width, player.height);
+    // nohy
+    ctx.fillStyle = "#222";
+    ctx.fillRect(x + 10 + legSwing, y + h - 40, 12, 40);
+    ctx.fillRect(x + w - 22 - legSwing, y + h - 40, 12, 40);
 
-    // baseballka
-    ctx.strokeStyle = "brown";
-    ctx.lineWidth = 8;
+    // tělo
+    ctx.fillStyle = shirtColor;
+    ctx.fillRect(x + 5, y + 40, w - 10, 55);
+
+    // ruce
+    ctx.fillStyle = "#f2c9a0";
+    ctx.fillRect(x - 5, y + 50, 12, 40);
+    ctx.fillRect(x + w - 7, y + 50, 12, 40);
+
+    // hlava
+    ctx.fillStyle = "#f2c9a0";
+    ctx.beginPath();
+    ctx.arc(x + w/2, y + 20, 18, 0, Math.PI * 2);
+    ctx.fill();
+
+    // oči
+    ctx.fillStyle = "black";
+    ctx.fillRect(x + w/2 - 8, y + 15, 4, 4);
+    ctx.fillRect(x + w/2 + 4, y + 15, 4, 4);
+  }
+
+  function drawBat() {
+    ctx.strokeStyle = "#8b5a2b";
+    ctx.lineWidth = 10;
 
     let batX1 = player.x + player.width / 2;
-    let batY1 = player.y + 40;
-    let batX2 = batX1 + player.facing * 65;
-    let batY2 = batY1 - 10;
+    let batY1 = player.y + 70;
+
+    let swing = 0;
+    if (player.attackAnim > 0) {
+      swing = Math.sin((12 - player.attackAnim) / 12 * Math.PI) * 40;
+    }
+
+    let batX2 = batX1 + player.facing * (75 + swing);
+    let batY2 = batY1 - 15 - swing * 0.4;
 
     ctx.beginPath();
     ctx.moveTo(batX1, batY1);
     ctx.lineTo(batX2, batY2);
     ctx.stroke();
+  }
 
-    // nepřátelé (bez zbraní)
+  function drawHealthBar(x, y, w, h, hp, maxHp) {
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.fillRect(x, y, w, h);
+
+    const fill = Math.max(0, (hp / maxHp) * w);
+    ctx.fillStyle = "lime";
+    ctx.fillRect(x, y, fill, h);
+  }
+
+  function drawUI() {
+    // HP
+    drawHealthBar(20, 20, 220, 18, player.hp, 100);
+
+    // SCORE
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("SCORE: " + score, 20, 70);
+
+    // COMBO
+    if (combo > 1) {
+      ctx.fillStyle = "yellow";
+      ctx.font = "26px Arial";
+      ctx.fillText("COMBO x" + combo, 20, 105);
+    }
+  }
+
+  function drawKO() {
+    if (koTextTimer <= 0) return;
+
+    const scale = 1 + Math.sin((40 - koTextTimer) / 40 * Math.PI) * 0.3;
+
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2 - 120);
+    ctx.scale(scale, scale);
+
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.font = "90px Arial";
+    ctx.fillText("KO!", -95, 0);
+
+    ctx.fillStyle = "red";
+    ctx.font = "90px Arial";
+    ctx.fillText("KO!", -100, -5);
+
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // shake offset
+    let shakeX = 0;
+    let shakeY = 0;
+    if (camera.shake > 0) {
+      shakeX = (Math.random() - 0.5) * camera.shake;
+      shakeY = (Math.random() - 0.5) * camera.shake;
+    }
+
+    ctx.save();
+    ctx.scale(camera.zoom, camera.zoom);
+    ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
+
+    drawNYBackground();
+
+    // zem
+    ctx.fillStyle = "#444";
+    ctx.fillRect(0, groundY, world.width, world.height - groundY);
+
+    // hráč
+    drawCharacter(player, "#ff3333", player.walkAnim);
+    drawBat();
+
+    // nepřátelé
     enemies.forEach(enemy => {
       if (!enemy.alive) return;
 
-      ctx.fillStyle = "black";
-      ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
-
-      // oči (aby byli srandovní)
-      ctx.fillStyle = "white";
-      ctx.fillRect(enemy.x + 12, enemy.y + 20, 10, 10);
-      ctx.fillRect(enemy.x + 32, enemy.y + 20, 10, 10);
-
-      // HP bar
-      drawHealthBar(enemy.x, enemy.y - 18, 60, 10, enemy.hp, 50);
+      drawCharacter(enemy, enemy.color, enemy.walkAnim);
+      drawHealthBar(enemy.x, enemy.y - 20, 60, 10, enemy.hp, enemy.maxHp);
     });
 
-    // splash částice
+    // particles
     ctx.fillStyle = "red";
     particles.forEach(p => {
       ctx.beginPath();
@@ -385,15 +603,14 @@
       ctx.fill();
     });
 
-    // HP hráče
-    drawHealthBar(20, 20, 220, 18, player.hp, 100);
+    ctx.restore();
 
-    ctx.fillStyle = "black";
-    ctx.font = "18px Arial";
-    ctx.fillText("⚾ MLÁTIČKA - ARKÁDA PRO DĚTI", 20, 60);
+    // UI
+    drawUI();
+    drawKO();
 
     if (slowMotionTimer > 0) {
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
       ctx.font = "50px Arial";
       ctx.fillText("SLOMO!", canvas.width / 2 - 100, 120);
     }
@@ -405,6 +622,9 @@
       ctx.fillStyle = "white";
       ctx.font = "60px Arial";
       ctx.fillText("GAME OVER", canvas.width / 2 - 170, canvas.height / 2);
+
+      ctx.font = "30px Arial";
+      ctx.fillText("Final Score: " + score, canvas.width / 2 - 110, canvas.height / 2 + 60);
     }
   }
 
