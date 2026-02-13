@@ -16,46 +16,78 @@
 
     canvas { display: block; }
 
+    /* ROADSTER STYLE OVLÁDÁNÍ */
     #controls {
       position: fixed;
       bottom: 0;
       left: 0;
       width: 100%;
-      height: 160px;
+      height: 180px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 15px;
+      padding: 20px;
       box-sizing: border-box;
-      background: rgba(0,0,0,0.55);
+      background: linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0));
     }
 
-    .left-controls, .right-controls {
+    /* Joystick */
+    #joystickBase {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      border: 2px solid rgba(255,255,255,0.25);
+      position: relative;
+      touch-action: none;
+    }
+
+    #joystickStick {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      border: 2px solid rgba(255,255,255,0.4);
+      position: absolute;
+      top: 35px;
+      left: 35px;
+      transition: 0.05s;
+    }
+
+    /* Tlačítka */
+    .actionButtons {
       display: flex;
-      gap: 15px;
+      gap: 20px;
     }
 
-    .btn {
-      width: 90px;
-      height: 90px;
-      border-radius: 20px;
-      background: rgba(255,255,255,0.2);
-      border: 2px solid rgba(255,255,255,0.5);
-      color: white;
-      font-size: 20px;
-      font-weight: bold;
+    .circleBtn {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.35);
       display: flex;
       justify-content: center;
       align-items: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: white;
       user-select: none;
     }
 
-    .btn:active { background: rgba(255,255,255,0.55); }
+    .circleBtn:active {
+      background: rgba(255,255,255,0.4);
+      transform: scale(0.95);
+    }
 
-    .big-btn {
-      width: 120px;
-      height: 120px;
-      font-size: 22px;
+    .jump {
+      background: rgba(0,150,255,0.25);
+      border: 2px solid rgba(0,150,255,0.45);
+    }
+
+    .hit {
+      background: rgba(255,60,60,0.25);
+      border: 2px solid rgba(255,60,60,0.45);
     }
   </style>
 </head>
@@ -64,14 +96,13 @@
 <canvas id="gameCanvas"></canvas>
 
 <div id="controls">
-  <div class="left-controls">
-    <div class="btn" id="leftBtn">⬅️</div>
-    <div class="btn" id="rightBtn">➡️</div>
+  <div id="joystickBase">
+    <div id="joystickStick"></div>
   </div>
 
-  <div class="right-controls">
-    <div class="btn big-btn" id="jumpBtn">JUMP</div>
-    <div class="btn big-btn" id="attackBtn">HIT</div>
+  <div class="actionButtons">
+    <div class="circleBtn jump" id="jumpBtn">⬆️</div>
+    <div class="circleBtn hit" id="attackBtn">👊</div>
   </div>
 </div>
 
@@ -86,7 +117,7 @@
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
 
-  const controlsHeight = 160;
+  const controlsHeight = 180;
 
   const camera = {
     x: 0,
@@ -107,14 +138,91 @@
   const gravity = 1;
   const jumpStrength = -20;
 
-  // SCORE + COMBO
   let score = 0;
   let combo = 0;
-  let comboTimer = 0; // když dojde na 0, combo reset
+  let comboTimer = 0;
   let koTextTimer = 0;
 
   const input = { left:false, right:false, jump:false, attack:false };
 
+  // ------------------------
+  // JOYSTICK OVLÁDÁNÍ
+  // ------------------------
+  const joystickBase = document.getElementById("joystickBase");
+  const joystickStick = document.getElementById("joystickStick");
+
+  let joystickActive = false;
+  let baseRect = null;
+  let centerX = 0;
+  let centerY = 0;
+
+  function updateBaseRect() {
+    baseRect = joystickBase.getBoundingClientRect();
+    centerX = baseRect.left + baseRect.width / 2;
+    centerY = baseRect.top + baseRect.height / 2;
+  }
+
+  updateBaseRect();
+  window.addEventListener("resize", updateBaseRect);
+
+  joystickBase.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    joystickActive = true;
+    updateBaseRect();
+  });
+
+  joystickBase.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    if (!joystickActive) return;
+
+    const touch = e.touches[0];
+    const dx = touch.clientX - centerX;
+    const dy = touch.clientY - centerY;
+
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const maxDist = 45;
+
+    let nx = dx;
+    let ny = dy;
+
+    if (dist > maxDist) {
+      nx = (dx / dist) * maxDist;
+      ny = (dy / dist) * maxDist;
+    }
+
+    joystickStick.style.left = (35 + nx) + "px";
+    joystickStick.style.top = (35 + ny) + "px";
+
+    // pohyb vlevo/vpravo podle dx
+    input.left = nx < -15;
+    input.right = nx > 15;
+  });
+
+  joystickBase.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    joystickActive = false;
+
+    joystickStick.style.left = "35px";
+    joystickStick.style.top = "35px";
+
+    input.left = false;
+    input.right = false;
+  });
+
+  joystickBase.addEventListener("touchcancel", (e) => {
+    e.preventDefault();
+    joystickActive = false;
+
+    joystickStick.style.left = "35px";
+    joystickStick.style.top = "35px";
+
+    input.left = false;
+    input.right = false;
+  });
+
+  // ------------------------
+  // BUTTONS
+  // ------------------------
   function setButtonEvents(button, keyName) {
     button.addEventListener("touchstart", (e) => {
       e.preventDefault();
@@ -132,11 +240,12 @@
     });
   }
 
-  setButtonEvents(document.getElementById("leftBtn"), "left");
-  setButtonEvents(document.getElementById("rightBtn"), "right");
   setButtonEvents(document.getElementById("jumpBtn"), "jump");
   setButtonEvents(document.getElementById("attackBtn"), "attack");
 
+  // ------------------------
+  // PLAYER
+  // ------------------------
   const player = {
     x: 200,
     y: groundY - 120,
@@ -152,6 +261,9 @@
     walkAnim: 0
   };
 
+  // ------------------------
+  // ENEMIES
+  // ------------------------
   const enemies = [];
 
   function createEnemy(type) {
@@ -191,7 +303,6 @@
       };
     }
 
-    // normal
     return {
       type: "normal",
       x: side === "left" ? 40 : world.width - 80,
@@ -210,7 +321,6 @@
 
   function spawnEnemy() {
     const r = Math.random();
-
     if (r < 0.20) enemies.push(createEnemy("tank"));
     else if (r < 0.55) enemies.push(createEnemy("fast"));
     else enemies.push(createEnemy("normal"));
@@ -218,6 +328,9 @@
 
   for (let i = 0; i < 6; i++) spawnEnemy();
 
+  // ------------------------
+  // PARTICLES
+  // ------------------------
   const particles = [];
 
   function spawnSplash(x, y, amount = 40) {
@@ -244,19 +357,17 @@
 
   function addScore(enemyType) {
     let base = 100;
-
     if (enemyType === "fast") base = 140;
     if (enemyType === "tank") base = 220;
 
     combo++;
-    comboTimer = 180; // 3 sekundy
+    comboTimer = 180;
 
     const comboBonus = combo * 20;
     score += base + comboBonus;
 
-    // KO efekt
     koTextTimer = 40;
-    camera.shake = 20;
+    camera.shake = 18;
   }
 
   function playerAttack() {
@@ -277,8 +388,6 @@
 
       if (rectsCollide(batHitbox, enemy)) {
         enemy.hp -= 25;
-
-        // knockback
         enemy.x += player.facing * (enemy.type === "tank" ? 25 : 55);
 
         spawnSplash(enemy.x + enemy.width / 2, enemy.y + 60, 18);
@@ -306,9 +415,33 @@
       camera.x = world.width - (canvas.width / camera.zoom);
     }
 
-    // shake
     if (camera.shake > 0) camera.shake--;
   }
+
+  // ------------------------
+  // BACKGROUND GENERATION (FIXED!)
+  // ------------------------
+  const skylineBuildings = [];
+  const skylineWindows = [];
+
+  function generateSkyline() {
+    skylineBuildings.length = 0;
+    skylineWindows.length = 0;
+
+    for (let i = 0; i < 90; i++) {
+      const bx = i * 38;
+      const bh = 200 + Math.random() * 260;
+      skylineBuildings.push({ x: bx, h: bh });
+    }
+
+    for (let i = 0; i < 250; i++) {
+      const wx = Math.random() * world.width;
+      const wy = (groundY - 450) + Math.random() * 350;
+      skylineWindows.push({ x: wx, y: wy });
+    }
+  }
+
+  generateSkyline();
 
   function update() {
     let timeScale = slowMotionTimer > 0 ? 0.45 : 1;
@@ -319,11 +452,9 @@
 
     if (koTextTimer > 0) koTextTimer -= 1 * timeScale;
 
-    // combo timer
     if (comboTimer > 0) comboTimer -= 1 * timeScale;
     if (comboTimer <= 0) combo = 0;
 
-    // pohyb hráče
     let moving = false;
 
     if (input.left) {
@@ -340,31 +471,25 @@
     if (moving) player.walkAnim += 0.25 * timeScale;
     else player.walkAnim *= 0.9;
 
-    // skok
     if (input.jump && player.onGround) {
       player.velocityY = jumpStrength;
       player.onGround = false;
     }
 
-    // útok
     if (input.attack) playerAttack();
 
-    // gravitace
     player.velocityY += gravity * timeScale;
     player.y += player.velocityY * timeScale;
 
-    // zem
     if (player.y + player.height >= groundY) {
       player.y = groundY - player.height;
       player.velocityY = 0;
       player.onGround = true;
     }
 
-    // hranice světa
     if (player.x < 0) player.x = 0;
     if (player.x + player.width > world.width) player.x = world.width - player.width;
 
-    // AI nepřátel
     enemies.forEach(enemy => {
       if (!enemy.alive) return;
 
@@ -385,7 +510,6 @@
 
       const dist = Math.abs(enemy.x - player.x);
 
-      // útok nepřítele
       if (dist < 70 && enemy.hitCooldown <= 0) {
         let dmg = 5;
         if (enemy.type === "fast") dmg = 4;
@@ -399,7 +523,6 @@
       }
     });
 
-    // particles
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
       p.vy += 0.6 * timeScale;
@@ -421,8 +544,9 @@
     updateCamera();
   }
 
-  // --- DRAW ---
-
+  // ------------------------
+  // DRAW
+  // ------------------------
   function drawNYBackground() {
     const sky = ctx.createLinearGradient(0, 0, 0, world.height);
     sky.addColorStop(0, "#ff914d");
@@ -438,18 +562,14 @@
     ctx.fill();
 
     ctx.fillStyle = "rgba(0,0,0,0.65)";
-    for (let i = 0; i < 90; i++) {
-      const bx = i * 38;
-      const bh = 200 + Math.random() * 260;
-      ctx.fillRect(bx, groundY - bh, 34, bh);
-    }
+    skylineBuildings.forEach(b => {
+      ctx.fillRect(b.x, groundY - b.h, 34, b.h);
+    });
 
     ctx.fillStyle = "rgba(255,255,180,0.45)";
-    for (let i = 0; i < 250; i++) {
-      const wx = Math.random() * world.width;
-      const wy = (groundY - 450) + Math.random() * 350;
-      ctx.fillRect(wx, wy, 4, 4);
-    }
+    skylineWindows.forEach(w => {
+      ctx.fillRect(w.x, w.y, 4, 4);
+    });
   }
 
   function drawShadow(x, y, w) {
@@ -469,27 +589,22 @@
 
     drawShadow(x, y, w);
 
-    // nohy
     ctx.fillStyle = "#222";
     ctx.fillRect(x + 10 + legSwing, y + h - 40, 12, 40);
     ctx.fillRect(x + w - 22 - legSwing, y + h - 40, 12, 40);
 
-    // tělo
     ctx.fillStyle = shirtColor;
     ctx.fillRect(x + 5, y + 40, w - 10, 55);
 
-    // ruce
     ctx.fillStyle = "#f2c9a0";
     ctx.fillRect(x - 5, y + 50, 12, 40);
     ctx.fillRect(x + w - 7, y + 50, 12, 40);
 
-    // hlava
     ctx.fillStyle = "#f2c9a0";
     ctx.beginPath();
     ctx.arc(x + w/2, y + 20, 18, 0, Math.PI * 2);
     ctx.fill();
 
-    // oči
     ctx.fillStyle = "black";
     ctx.fillRect(x + w/2 - 8, y + 15, 4, 4);
     ctx.fillRect(x + w/2 + 4, y + 15, 4, 4);
@@ -526,15 +641,12 @@
   }
 
   function drawUI() {
-    // HP
     drawHealthBar(20, 20, 220, 18, player.hp, 100);
 
-    // SCORE
     ctx.fillStyle = "white";
     ctx.font = "20px Arial";
     ctx.fillText("SCORE: " + score, 20, 70);
 
-    // COMBO
     if (combo > 1) {
       ctx.fillStyle = "yellow";
       ctx.font = "26px Arial";
@@ -565,7 +677,6 @@
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // shake offset
     let shakeX = 0;
     let shakeY = 0;
     if (camera.shake > 0) {
@@ -579,23 +690,18 @@
 
     drawNYBackground();
 
-    // zem
     ctx.fillStyle = "#444";
     ctx.fillRect(0, groundY, world.width, world.height - groundY);
 
-    // hráč
     drawCharacter(player, "#ff3333", player.walkAnim);
     drawBat();
 
-    // nepřátelé
     enemies.forEach(enemy => {
       if (!enemy.alive) return;
-
       drawCharacter(enemy, enemy.color, enemy.walkAnim);
       drawHealthBar(enemy.x, enemy.y - 20, 60, 10, enemy.hp, enemy.maxHp);
     });
 
-    // particles
     ctx.fillStyle = "red";
     particles.forEach(p => {
       ctx.beginPath();
@@ -605,15 +711,8 @@
 
     ctx.restore();
 
-    // UI
     drawUI();
     drawKO();
-
-    if (slowMotionTimer > 0) {
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.font = "50px Arial";
-      ctx.fillText("SLOMO!", canvas.width / 2 - 100, 120);
-    }
 
     if (player.hp <= 0) {
       ctx.fillStyle = "rgba(0,0,0,0.7)";
