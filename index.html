@@ -1,780 +1,998 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Mlátička 2D - NYC Sunset</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>ROADSTER BRAWL 1.0 - Night Edition</title>
 
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #111;
-      touch-action: none;
+    body{
+      margin:0;
+      background: radial-gradient(circle at top, #111, #000);
       font-family: Arial, sans-serif;
+      overflow:hidden;
+      color:white;
+      touch-action:none;
     }
 
-    canvas {
-      display: block;
+    #hud{
+      width:100%;
+      max-width:420px;
+      margin:0 auto;
+      display:flex;
+      justify-content:space-between;
+      font-size:13px;
+      font-weight:bold;
+      padding:10px 14px;
+      box-sizing:border-box;
+      opacity:0.95;
+      gap:10px;
+      align-items:center;
     }
 
-    /* MENŠÍ ROADSTER OVLÁDÁNÍ PRO IPHONE */
-    #controls {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: 95px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px;
-      box-sizing: border-box;
-      background: linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0));
+    #hudLeft, #hudRight{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
     }
 
-    #joystickBase {
-      width: 78px;
-      height: 78px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.12);
-      border: 2px solid rgba(255,255,255,0.25);
-      position: relative;
-      touch-action: none;
+    #hpWrap{
+      width:140px;
+      height:12px;
+      border:2px solid gold;
+      border-radius:8px;
+      overflow:hidden;
+      background:rgba(0,0,0,0.6);
+      box-shadow:0 0 10px rgba(255,215,0,0.2);
     }
 
-    #joystickStick {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.3);
-      border: 2px solid rgba(255,255,255,0.4);
-      position: absolute;
-      top: 18px;
-      left: 18px;
-      transition: 0.05s;
+    #hpBar{
+      height:100%;
+      width:100%;
+      background: linear-gradient(90deg, #ff3333, #ffcc00, #00ff66);
+      transition: width 0.08s linear;
     }
 
-    .actionButtons {
-      display: flex;
-      gap: 10px;
+    #wrap{
+      width:100%;
+      max-width:420px;
+      margin:0 auto;
+      position:relative;
     }
 
-    .circleBtn {
-      width: 62px;
-      height: 62px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      border: 2px solid rgba(255,255,255,0.35);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 20px;
-      font-weight: bold;
-      color: white;
-      user-select: none;
+    canvas{
+      width:100%;
+      height:75vh;
+      border:4px solid #444;
+      border-radius:14px;
+      background: linear-gradient(#1a1a1a, #0b0b0b);
+      display:block;
+      box-shadow:0 0 20px rgba(255,255,255,0.08);
+      transform-origin:center;
+      transition: transform 0.15s ease;
     }
 
-    .circleBtn:active {
-      background: rgba(255,255,255,0.4);
-      transform: scale(0.92);
+    canvas.hitShake{
+      transform: scale(1.03);
     }
 
-    .jump {
-      background: rgba(0,150,255,0.25);
-      border: 2px solid rgba(0,150,255,0.45);
+    #controls{
+      width:100%;
+      max-width:420px;
+      margin:12px auto;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      padding:0 12px;
+      box-sizing:border-box;
     }
 
-    .hit {
-      background: rgba(255,60,60,0.25);
-      border: 2px solid rgba(255,60,60,0.45);
+    .btn{
+      flex:1;
+      height:78px;
+      border-radius:18px;
+      color:black;
+      font-size:28px;
+      font-weight:900;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      user-select:none;
+      -webkit-user-select:none;
+      -webkit-touch-callout:none;
+      background: repeating-linear-gradient(
+        45deg,
+        #ffd500,
+        #ffd500 12px,
+        #111 12px,
+        #111 24px
+      );
+      border:3px solid #ffd500;
+      box-shadow:0 0 14px rgba(255,213,0,0.25);
+      text-shadow:0 0 6px rgba(0,0,0,0.8);
+    }
+
+    .btn:active{
+      transform:scale(0.96);
+      filter:brightness(1.2);
+    }
+
+    /* START SCREEN */
+    #startScreen{
+      position:absolute;
+      inset:0;
+      background:rgba(0,0,0,0.95);
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      flex-direction:column;
+      text-align:center;
+      z-index:999;
+      border-radius:14px;
+      overflow:hidden;
+    }
+
+    #introText{
+      font-size:16px;
+      font-weight:900;
+      letter-spacing:3px;
+      color:#ffd500;
+      opacity:0;
+      transform:translateY(20px);
+      animation:introFade 1.5s ease forwards;
+    }
+
+    #mainLogo{
+      font-size:52px;
+      margin:12px 0 0 0;
+      color:gold;
+      letter-spacing:8px;
+      text-shadow:0 0 25px rgba(255,215,0,0.35);
+      opacity:0;
+      transform:scale(0.8);
+      animation:logoPop 1.8s ease forwards;
+      animation-delay:1.2s;
+    }
+
+    #subText{
+      margin-top:10px;
+      font-size:14px;
+      opacity:0;
+      animation:subFade 1.4s ease forwards;
+      animation-delay:2.5s;
+    }
+
+    #startBtn{
+      margin-top:26px;
+      padding:16px 32px;
+      border:none;
+      border-radius:14px;
+      font-size:20px;
+      cursor:pointer;
+      background: repeating-linear-gradient(
+        45deg,
+        #ffd500,
+        #ffd500 12px,
+        #111 12px,
+        #111 24px
+      );
+      color:black;
+      font-weight:900;
+      box-shadow:0 0 20px rgba(255,215,0,0.25);
+      opacity:0;
+      pointer-events:none;
+      animation:btnShow 1.2s ease forwards;
+      animation-delay:3.6s;
+    }
+
+    @keyframes introFade{
+      0%{opacity:0; transform:translateY(20px);}
+      100%{opacity:1; transform:translateY(0px);}
+    }
+    @keyframes logoPop{
+      0%{opacity:0; transform:scale(0.75);}
+      60%{opacity:1; transform:scale(1.08);}
+      100%{opacity:1; transform:scale(1);}
+    }
+    @keyframes subFade{
+      0%{opacity:0;}
+      100%{opacity:0.85;}
+    }
+    @keyframes btnShow{
+      0%{opacity:0; transform:translateY(15px);}
+      100%{opacity:1; transform:translateY(0px); pointer-events:auto;}
+    }
+
+    /* GAME OVER */
+    #gameOver{
+      position:absolute;
+      inset:0;
+      background:rgba(0,0,0,0.88);
+      display:none;
+      justify-content:center;
+      align-items:center;
+      flex-direction:column;
+      text-align:center;
+      z-index:999;
+      border-radius:14px;
+    }
+
+    #gameOver h1{
+      margin:0;
+      font-size:38px;
+      color:gold;
+      text-shadow:0 0 15px rgba(255,215,0,0.3);
+    }
+
+    #gameOver p{
+      margin:12px 0;
+      opacity:0.9;
+    }
+
+    button{
+      padding:12px 18px;
+      border:none;
+      border-radius:10px;
+      font-size:16px;
+      cursor:pointer;
+      background:gold;
+      font-weight:bold;
+      box-shadow:0 0 10px rgba(255,215,0,0.3);
+    }
+
+    #controlsLeft{
+      flex:1.1;
+      display:flex;
+      gap:10px;
+    }
+
+    #controlsRight{
+      flex:1.4;
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+    }
+
+    .smallBtn{
+      font-size:26px;
     }
   </style>
 </head>
 
 <body>
 
-<canvas id="gameCanvas"></canvas>
-
-<div id="controls">
-  <div id="joystickBase">
-    <div id="joystickStick"></div>
+<div id="hud">
+  <div id="hudLeft">
+    <div>Skóre: <span id="score">0</span></div>
+    <div>Vlna: <span id="wave">1</span></div>
   </div>
 
-  <div class="actionButtons">
-    <div class="circleBtn jump" id="jumpBtn">⬆️</div>
-    <div class="circleBtn hit" id="attackBtn">⚾</div>
+  <div id="hudRight">
+    <div>HP: <span id="hpText">100</span></div>
+    <div id="hpWrap"><div id="hpBar"></div></div>
+  </div>
+</div>
+
+<div id="wrap">
+  <canvas id="game"></canvas>
+
+  <div id="startScreen">
+    <div id="introText">DANIEL_SDILI UVÁDÍ:</div>
+    <div id="mainLogo">ROADSTER</div>
+    <div id="subText">Brawl Night Edition</div>
+    <button id="startBtn">START</button>
+  </div>
+
+  <div id="gameOver">
+    <h1>GAME OVER</h1>
+    <p>Tvoje skóre: <span id="finalScore">0</span></p>
+    <button onclick="restartGame()">Zkusit znovu</button>
+  </div>
+</div>
+
+<div id="controls">
+  <div id="controlsLeft">
+    <div class="btn smallBtn" id="leftBtn">◀</div>
+    <div class="btn smallBtn" id="rightBtn">▶</div>
+  </div>
+
+  <div id="controlsRight">
+    <div class="btn" id="kickBtn">🦵 KOP</div>
+    <div class="btn" id="batBtn">🏏 PÁLKA</div>
   </div>
 </div>
 
 <script>
-  const canvas = document.getElementById("gameCanvas");
+  const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
 
-  function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+  const scoreEl = document.getElementById("score");
+  const waveEl = document.getElementById("wave");
+
+  const hpText = document.getElementById("hpText");
+  const hpBar = document.getElementById("hpBar");
+
+  const gameOverScreen = document.getElementById("gameOver");
+  const finalScoreEl = document.getElementById("finalScore");
+
+  const startScreen = document.getElementById("startScreen");
+  const startBtn = document.getElementById("startBtn");
+
+  const leftBtn = document.getElementById("leftBtn");
+  const rightBtn = document.getElementById("rightBtn");
+  const kickBtn = document.getElementById("kickBtn");
+  const batBtn = document.getElementById("batBtn");
+
+  let w, h;
+
+  function resizeCanvas(){
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * devicePixelRatio;
+    canvas.height = rect.height * devicePixelRatio;
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    w = rect.width;
+    h = rect.height;
   }
+
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
 
-  const controlsHeight = 95;
+  function rand(min, max){ return Math.random() * (max - min) + min; }
 
-  const camera = {
-    x: 0,
-    y: 0,
-    zoom: 0.72,
-    shake: 0
-  };
+  let running = false;
+  let frame = 0;
 
-  const world = {
-    width: 3400,
-    height: 900
-  };
-
-  let groundY = world.height - 160;
-
-  let slowMotionTimer = 0;
-
-  const gravity = 1;
-  const jumpStrength = -20;
-
-  // SCORE + COMBO
   let score = 0;
-  let combo = 0;
-  let comboTimer = 0;
-  let koTextTimer = 0;
+  let wave = 1;
 
-  const input = { left:false, right:false, jump:false, attack:false };
+  let bgScroll = 0;
 
-  // -------------------------
-  // JOYSTICK OVLÁDÁNÍ
-  // -------------------------
-  const joystickBase = document.getElementById("joystickBase");
-  const joystickStick = document.getElementById("joystickStick");
+  let holdingLeft = false;
+  let holdingRight = false;
 
-  let joystickActive = false;
-  let baseRect = null;
-  let centerX = 0;
-  let centerY = 0;
+  let camShake = 0;
 
-  function updateBaseRect() {
-    baseRect = joystickBase.getBoundingClientRect();
-    centerX = baseRect.left + baseRect.width / 2;
-    centerY = baseRect.top + baseRect.height / 2;
-  }
+  const floorY = () => h - 135;
 
-  updateBaseRect();
-  window.addEventListener("resize", updateBaseRect);
-
-  joystickBase.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    joystickActive = true;
-    updateBaseRect();
-  });
-
-  joystickBase.addEventListener("touchmove", (e) => {
-    e.preventDefault();
-    if (!joystickActive) return;
-
-    const touch = e.touches[0];
-    const dx = touch.clientX - centerX;
-    const dy = touch.clientY - centerY;
-
-    const dist = Math.sqrt(dx*dx + dy*dy);
-    const maxDist = 26;
-
-    let nx = dx;
-    let ny = dy;
-
-    if (dist > maxDist) {
-      nx = (dx / dist) * maxDist;
-      ny = (dy / dist) * maxDist;
-    }
-
-    joystickStick.style.left = (18 + nx) + "px";
-    joystickStick.style.top = (18 + ny) + "px";
-
-    input.left = nx < -10;
-    input.right = nx > 10;
-  });
-
-  joystickBase.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    joystickActive = false;
-
-    joystickStick.style.left = "18px";
-    joystickStick.style.top = "18px";
-
-    input.left = false;
-    input.right = false;
-  });
-
-  joystickBase.addEventListener("touchcancel", (e) => {
-    e.preventDefault();
-    joystickActive = false;
-
-    joystickStick.style.left = "18px";
-    joystickStick.style.top = "18px";
-
-    input.left = false;
-    input.right = false;
-  });
-
-  // -------------------------
-  // BUTTONS
-  // -------------------------
-  function setButtonEvents(button, keyName) {
-    button.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      input[keyName] = true;
-    });
-
-    button.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      input[keyName] = false;
-    });
-
-    button.addEventListener("touchcancel", (e) => {
-      e.preventDefault();
-      input[keyName] = false;
-    });
-  }
-
-  setButtonEvents(document.getElementById("jumpBtn"), "jump");
-  setButtonEvents(document.getElementById("attackBtn"), "attack");
-
-  // -------------------------
-  // PLAYER
-  // -------------------------
   const player = {
-    x: 200,
-    y: groundY - 120,
-    width: 55,
-    height: 120,
-    speed: 7,
-    velocityY: 0,
-    onGround: true,
+    x: 120,
+    y: 0,
+    w: 58,
+    h: 118,
     hp: 100,
+    maxHp: 100,
     facing: 1,
-    attackCooldown: 0,
-    attackAnim: 0,
-    walkAnim: 0
+    hurtTimer: 0,
+
+    attackTimer: 0,
+    attackType: null, // "kick" | "bat"
+    batSwing: 0
   };
 
-  // -------------------------
-  // ENEMIES
-  // -------------------------
-  const enemies = [];
+  let enemies = [];
+  let blood = [];
+  let textPop = [];
 
-  function createEnemy(type) {
-    const side = Math.random() < 0.5 ? "left" : "right";
+  function spawnEnemy(){
+    const fromLeft = Math.random() < 0.5;
+    const x = fromLeft ? -80 : w + 80;
 
-    if (type === "fast") {
-      return {
-        type: "fast",
-        x: side === "left" ? 40 : world.width - 80,
-        y: groundY - 120,
-        width: 50,
-        height: 115,
-        hp: 35,
-        maxHp: 35,
-        speed: 4.5,
-        alive: true,
-        hitCooldown: 0,
-        walkAnim: Math.random() * 10,
-        color: "#0066ff"
-      };
-    }
-
-    if (type === "tank") {
-      return {
-        type: "tank",
-        x: side === "left" ? 40 : world.width - 80,
-        y: groundY - 140,
-        width: 75,
-        height: 140,
-        hp: 120,
-        maxHp: 120,
-        speed: 1.3,
-        alive: true,
-        hitCooldown: 0,
-        walkAnim: Math.random() * 10,
-        color: "#663300"
-      };
-    }
-
-    return {
-      type: "normal",
-      x: side === "left" ? 40 : world.width - 80,
-      y: groundY - 120,
-      width: 55,
-      height: 120,
-      hp: 60,
-      maxHp: 60,
-      speed: 2.6,
+    enemies.push({
+      x,
+      y: floorY(),
+      w: 56,
+      h: 114,
+      hp: 50 + wave * 8,
+      maxHp: 50 + wave * 8,
+      dir: fromLeft ? 1 : -1,
+      speed: 1.2 + wave * 0.08,
+      hitTimer: 0,
       alive: true,
-      hitCooldown: 0,
-      walkAnim: Math.random() * 10,
-      color: "#111"
-    };
+      type: ["hoodie","cap","jacket"][Math.floor(Math.random()*3)]
+    });
   }
 
-  function spawnEnemy() {
-    const r = Math.random();
-    if (r < 0.20) enemies.push(createEnemy("tank"));
-    else if (r < 0.55) enemies.push(createEnemy("fast"));
-    else enemies.push(createEnemy("normal"));
+  function spawnWave(){
+    const count = 2 + Math.min(8, wave);
+    for(let i=0;i<count;i++){
+      setTimeout(() => spawnEnemy(), i * 500);
+    }
   }
 
-  for (let i = 0; i < 6; i++) spawnEnemy();
+  function splashBlood(x, y, big){
+    const amount = big ? 70 : 22;
 
-  // -------------------------
-  // PARTICLES
-  // -------------------------
-  const particles = [];
-
-  function spawnSplash(x, y, amount = 40) {
-    for (let i = 0; i < amount; i++) {
-      particles.push({
-        x: x,
-        y: y,
-        vx: (Math.random() - 0.5) * 12,
-        vy: -Math.random() * 14,
-        size: Math.random() * 6 + 2,
-        life: 60 + Math.random() * 40
+    for(let i=0;i<amount;i++){
+      blood.push({
+        x: x + rand(-12, 12),
+        y: y + rand(-25, 15),
+        vx: rand(-10, 10) * (big ? 1.25 : 0.6),
+        vy: rand(-18, -4) * (big ? 1.4 : 0.7),
+        life: rand(45, 90) * (big ? 1.2 : 1),
+        size: rand(big ? 5 : 3, big ? 18 : 10),
+        drip: rand(0.2, 0.55),
+        alpha: rand(0.7, 1)
       });
     }
   }
 
-  function rectsCollide(a, b) {
-    return (
-      a.x < b.x + b.width &&
-      a.x + a.width > b.x &&
-      a.y < b.y + b.height &&
-      a.y + a.height > b.y
+  function addComicText(x, y, txt){
+    textPop.push({
+      x, y,
+      txt,
+      life: 70,
+      vy: -0.6
+    });
+  }
+
+  function updateBlood(){
+    blood.forEach((b, idx) => {
+      b.life--;
+      b.x += b.vx;
+      b.y += b.vy;
+      b.vy += b.drip;
+      b.vx *= 0.96;
+
+      if(b.life <= 0) blood.splice(idx, 1);
+    });
+  }
+
+  function drawBlood(){
+    blood.forEach(b => {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, b.life / 90) * b.alpha;
+
+      const g = ctx.createRadialGradient(b.x, b.y, 2, b.x, b.y, b.size);
+      g.addColorStop(0, "rgba(255,0,0,1)");
+      g.addColorStop(0.4, "rgba(200,0,0,0.95)");
+      g.addColorStop(1, "rgba(120,0,0,0)");
+
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.size, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.restore();
+    });
+  }
+
+  function updateTextPop(){
+    textPop.forEach((t, idx) => {
+      t.life--;
+      t.y += t.vy;
+      if(t.life <= 0) textPop.splice(idx, 1);
+    });
+  }
+
+  function drawTextPop(){
+    textPop.forEach(t => {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, t.life / 70);
+
+      ctx.font = "900 28px Arial";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "gold";
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 6;
+
+      ctx.strokeText(t.txt, t.x, t.y);
+      ctx.fillText(t.txt, t.x, t.y);
+
+      ctx.restore();
+    });
+  }
+
+  function drawStreet(){
+    bgScroll += 1.2;
+    const roadGrad = ctx.createLinearGradient(0, 0, 0, h);
+    roadGrad.addColorStop(0, "#0b0b0f");
+    roadGrad.addColorStop(0.6, "#050508");
+    roadGrad.addColorStop(1, "#000000");
+
+    ctx.fillStyle = roadGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    // neon borders
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = "rgba(255,215,0,0.9)";
+    ctx.fillRect(0, 0, 10, h);
+    ctx.fillRect(w - 10, 0, 10, h);
+    ctx.globalAlpha = 1;
+
+    // sidewalk lines
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    for(let i=0;i<10;i++){
+      const y = ((i * 90) + bgScroll) % (h + 120) - 120;
+      ctx.fillRect(w/2 - 70, y, 140, 10);
+    }
+    ctx.globalAlpha = 1;
+
+    // floor line
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.fillRect(0, floorY() + player.h - 10, w, 2);
+    ctx.globalAlpha = 1;
+
+    // grain
+    ctx.globalAlpha = 0.10;
+    for (let i = 0; i < 180; i++) {
+      ctx.fillStyle = (Math.random() > 0.5)
+        ? "rgba(255,255,255,0.18)"
+        : "rgba(0,0,0,0.35)";
+      ctx.fillRect(rand(0, w), rand(0, h), 1, 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // PS2 Rockstar-ish fighter model (lowpoly cartoon shadow)
+  function drawRockstarFighter(x, y, w2, h2, facing, type, hurt, isEnemy){
+    ctx.save();
+    ctx.translate(x + w2/2, y + h2/2);
+    ctx.scale(facing, 1);
+
+    // shadow
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    ctx.ellipse(0, h2/2 - 12, w2 * 0.55, 16, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    const bodyColor = isEnemy ? "#222" : "#111";
+    const jacketColor = isEnemy ? "#333" : "#1b1b1b";
+
+    if(type === "hoodie") jacketColor = "#1a1a2a";
+    if(type === "cap") jacketColor = "#222222";
+    if(type === "jacket") jacketColor = "#2a1a1a";
+
+    // legs
+    ctx.fillStyle = "rgba(10,10,10,0.95)";
+    ctx.fillRect(-w2*0.22, h2*0.05, w2*0.18, h2*0.38);
+    ctx.fillRect(w2*0.04, h2*0.05, w2*0.18, h2*0.38);
+
+    // shoes
+    ctx.fillStyle = "rgba(40,40,40,0.95)";
+    ctx.fillRect(-w2*0.24, h2*0.40, w2*0.22, h2*0.08);
+    ctx.fillRect(w2*0.02, h2*0.40, w2*0.22, h2*0.08);
+
+    // torso
+    const torsoGrad = ctx.createLinearGradient(0, -h2*0.3, 0, h2*0.3);
+    torsoGrad.addColorStop(0, jacketColor);
+    torsoGrad.addColorStop(1, bodyColor);
+
+    ctx.fillStyle = torsoGrad;
+    ctx.beginPath();
+    ctx.moveTo(-w2*0.30, -h2*0.20);
+    ctx.lineTo(w2*0.30, -h2*0.20);
+    ctx.lineTo(w2*0.22, h2*0.22);
+    ctx.lineTo(-w2*0.22, h2*0.22);
+    ctx.closePath();
+    ctx.fill();
+
+    // shoulders
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = jacketColor;
+    ctx.fillRect(-w2*0.35, -h2*0.18, w2*0.70, h2*0.14);
+    ctx.globalAlpha = 1;
+
+    // arms
+    ctx.fillStyle = "rgba(15,15,15,0.95)";
+    ctx.fillRect(-w2*0.42, -h2*0.12, w2*0.14, h2*0.32);
+    ctx.fillRect(w2*0.28, -h2*0.12, w2*0.14, h2*0.32);
+
+    // hands
+    ctx.fillStyle = "rgba(60,50,40,0.9)";
+    ctx.fillRect(-w2*0.43, h2*0.17, w2*0.16, h2*0.10);
+    ctx.fillRect(w2*0.27, h2*0.17, w2*0.16, h2*0.10);
+
+    // head
+    ctx.fillStyle = "rgba(70,60,50,0.92)";
+    ctx.beginPath();
+    ctx.arc(0, -h2*0.30, w2*0.18, 0, Math.PI*2);
+    ctx.fill();
+
+    // cap/hood
+    if(type === "cap"){
+      ctx.fillStyle = "rgba(20,20,20,0.95)";
+      ctx.fillRect(-w2*0.18, -h2*0.42, w2*0.36, h2*0.10);
+      ctx.fillRect(w2*0.04, -h2*0.38, w2*0.22, h2*0.05);
+    }
+
+    if(type === "hoodie"){
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = "rgba(15,15,15,0.95)";
+      ctx.beginPath();
+      ctx.arc(0, -h2*0.30, w2*0.24, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // eyes
+    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    ctx.fillRect(-w2*0.10, -h2*0.33, w2*0.08, h2*0.03);
+    ctx.fillRect(w2*0.02, -h2*0.33, w2*0.08, h2*0.03);
+
+    // angry eyebrow shadow
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = "black";
+    ctx.fillRect(-w2*0.14, -h2*0.37, w2*0.28, h2*0.04);
+    ctx.globalAlpha = 1;
+
+    // hurt flash
+    if(hurt > 0){
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = "rgba(255,0,0,0.8)";
+      ctx.fillRect(-w2*0.45, -h2*0.48, w2*0.90, h2*0.95);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  }
+
+  function drawBatSwing(px, py, facing, progress){
+    // progress 0..1
+    const swingAngle = (-1.2 + progress * 2.2) * facing;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(swingAngle);
+
+    // bat
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = "#b88940";
+    ctx.fillRect(0, -8, 70, 16);
+
+    // tip
+    ctx.fillStyle = "#e0b060";
+    ctx.fillRect(55, -10, 20, 20);
+
+    // comic motion blur
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.fillRect(10, -22, 60, 6);
+    ctx.fillRect(10, 16, 60, 6);
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function updatePlayer(){
+    player.y = floorY();
+
+    if(player.hurtTimer > 0) player.hurtTimer--;
+
+    if(player.attackTimer > 0){
+      player.attackTimer--;
+      if(player.attackType === "bat"){
+        player.batSwing += 0.08;
+      }
+      if(player.attackTimer <= 0){
+        player.attackType = null;
+        player.batSwing = 0;
+      }
+      return;
+    }
+
+    if(holdingLeft){
+      player.x -= 5;
+      player.facing = -1;
+    }
+    if(holdingRight){
+      player.x += 5;
+      player.facing = 1;
+    }
+
+    if(player.x < 20) player.x = 20;
+    if(player.x > w - player.w - 20) player.x = w - player.w - 20;
+  }
+
+  function enemyAI(){
+    enemies.forEach(e => {
+      if(!e.alive) return;
+
+      if(e.hitTimer > 0) e.hitTimer--;
+
+      const dx = (player.x - e.x);
+      const dist = Math.abs(dx);
+
+      // face player
+      e.dir = dx > 0 ? 1 : -1;
+
+      if(dist > 42){
+        e.x += e.speed * e.dir;
+      }else{
+        // enemy hits player
+        if(frame % 45 === 0 && player.hurtTimer <= 0){
+          player.hp -= 8 + wave * 0.6;
+          player.hurtTimer = 18;
+
+          camShake = 10;
+          canvas.classList.add("hitShake");
+          setTimeout(() => canvas.classList.remove("hitShake"), 160);
+
+          splashBlood(player.x + player.w/2, player.y + player.h/2, false);
+
+          if(player.hp <= 0){
+            player.hp = 0;
+            endGame();
+          }
+        }
+      }
+
+      if(e.x < -200) e.x = -200;
+      if(e.x > w + 200) e.x = w + 200;
+    });
+  }
+
+  function rectsOverlap(a, b){
+    return !(
+      a.x > b.x + b.w ||
+      a.x + a.w < b.x ||
+      a.y > b.y + b.h ||
+      a.y + a.h < b.y
     );
   }
 
-  function addScore(enemyType) {
-    let base = 100;
-    if (enemyType === "fast") base = 140;
-    if (enemyType === "tank") base = 220;
+  function doKick(){
+    if(!running) return;
+    if(player.attackTimer > 0) return;
 
-    combo++;
-    comboTimer = 180;
+    player.attackType = "kick";
+    player.attackTimer = 18;
 
-    const comboBonus = combo * 20;
-    score += base + comboBonus;
-
-    koTextTimer = 40;
-    camera.shake = 18;
-  }
-
-  // -------------------------
-  // ATTACK
-  // -------------------------
-  function playerAttack() {
-    if (player.attackCooldown > 0) return;
-
-    player.attackCooldown = 22;
-    player.attackAnim = 12;
-
-    // větší hitbox aby seděl na švih
-    const batHitbox = {
-      x: player.facing === 1 ? player.x + player.width : player.x - 110,
-      y: player.y + 25,
-      width: 110,
-      height: 70
+    const hitBox = {
+      x: player.facing === 1 ? player.x + player.w - 5 : player.x - 45,
+      y: player.y + 30,
+      w: 55,
+      h: 55
     };
 
-    enemies.forEach(enemy => {
-      if (!enemy.alive) return;
+    enemies.forEach(e => {
+      if(!e.alive) return;
+      if(rectsOverlap(hitBox, {x:e.x, y:e.y, w:e.w, h:e.h})){
+        e.hp -= 18;
+        e.hitTimer = 10;
+        score += 10;
+        scoreEl.textContent = score;
 
-      if (rectsCollide(batHitbox, enemy)) {
-        enemy.hp -= 25;
+        splashBlood(e.x + e.w/2, e.y + 55, false);
+        camShake = 6;
 
-        enemy.x += player.facing * (enemy.type === "tank" ? 25 : 55);
-
-        spawnSplash(enemy.x + enemy.width / 2, enemy.y + 60, 18);
-
-        if (enemy.hp <= 0) {
-          enemy.alive = false;
-
-          spawnSplash(enemy.x + enemy.width / 2, enemy.y + 30, 120);
-
-          slowMotionTimer = 45;
-
-          addScore(enemy.type);
-
-          setTimeout(() => spawnEnemy(), 900);
+        if(e.hp <= 0){
+          e.alive = false;
+          score += 60;
+          scoreEl.textContent = score;
+          splashBlood(e.x + e.w/2, e.y + 55, false);
         }
       }
     });
   }
 
-  // -------------------------
-  // CAMERA
-  // -------------------------
-  function updateCamera() {
-    camera.x = player.x - (canvas.width / camera.zoom) / 2;
-    camera.y = 0;
+  function doBat(){
+    if(!running) return;
+    if(player.attackTimer > 0) return;
 
-    if (camera.x < 0) camera.x = 0;
-    if (camera.x > world.width - (canvas.width / camera.zoom)) {
-      camera.x = world.width - (canvas.width / camera.zoom);
-    }
+    player.attackType = "bat";
+    player.attackTimer = 28;
+    player.batSwing = 0;
 
-    if (camera.shake > 0) camera.shake--;
-  }
+    const hitBox = {
+      x: player.facing === 1 ? player.x + player.w - 10 : player.x - 90,
+      y: player.y + 15,
+      w: 100,
+      h: 85
+    };
 
-  // -------------------------
-  // BACKGROUND GENERATION
-  // -------------------------
-  const skylineBuildings = [];
-  const skylineWindows = [];
+    enemies.forEach(e => {
+      if(!e.alive) return;
+      if(rectsOverlap(hitBox, {x:e.x, y:e.y, w:e.w, h:e.h})){
+        e.hp -= 38;
+        e.hitTimer = 14;
+        score += 20;
+        scoreEl.textContent = score;
 
-  function generateSkyline() {
-    skylineBuildings.length = 0;
-    skylineWindows.length = 0;
+        splashBlood(e.x + e.w/2, e.y + 50, false);
+        camShake = 12;
 
-    for (let i = 0; i < 90; i++) {
-      const bx = i * 38;
-      const bh = 200 + Math.random() * 260;
-      skylineBuildings.push({ x: bx, h: bh });
-    }
+        if(e.hp <= 0){
+          e.alive = false;
+          score += 120;
+          scoreEl.textContent = score;
 
-    for (let i = 0; i < 250; i++) {
-      const wx = Math.random() * world.width;
-      const wy = (groundY - 450) + Math.random() * 350;
-      skylineWindows.push({ x: wx, y: wy });
-    }
-  }
+          // BIG GEYSER ON BAT KILL
+          splashBlood(e.x + e.w/2, e.y + 50, true);
+          addComicText(e.x + e.w/2, e.y - 10, "SPLAT!");
+          camShake = 22;
 
-  generateSkyline();
-
-  // -------------------------
-  // UPDATE
-  // -------------------------
-  function update() {
-    let timeScale = slowMotionTimer > 0 ? 0.45 : 1;
-    if (slowMotionTimer > 0) slowMotionTimer--;
-
-    if (player.attackCooldown > 0) player.attackCooldown -= 1 * timeScale;
-    if (player.attackAnim > 0) player.attackAnim -= 1 * timeScale;
-
-    if (koTextTimer > 0) koTextTimer -= 1 * timeScale;
-
-    if (comboTimer > 0) comboTimer -= 1 * timeScale;
-    if (comboTimer <= 0) combo = 0;
-
-    let moving = false;
-
-    if (input.left) {
-      player.x -= player.speed * timeScale;
-      player.facing = -1;
-      moving = true;
-    }
-
-    if (input.right) {
-      player.x += player.speed * timeScale;
-      player.facing = 1;
-      moving = true;
-    }
-
-    if (moving) player.walkAnim += 0.25 * timeScale;
-    else player.walkAnim *= 0.9;
-
-    if (input.jump && player.onGround) {
-      player.velocityY = jumpStrength;
-      player.onGround = false;
-    }
-
-    if (input.attack) playerAttack();
-
-    player.velocityY += gravity * timeScale;
-    player.y += player.velocityY * timeScale;
-
-    if (player.y + player.height >= groundY) {
-      player.y = groundY - player.height;
-      player.velocityY = 0;
-      player.onGround = true;
-    }
-
-    if (player.x < 0) player.x = 0;
-    if (player.x + player.width > world.width) player.x = world.width - player.width;
-
-    enemies.forEach(enemy => {
-      if (!enemy.alive) return;
-
-      if (enemy.hitCooldown > 0) enemy.hitCooldown -= 1 * timeScale;
-
-      let emoving = false;
-
-      if (enemy.x < player.x - 10) {
-        enemy.x += enemy.speed * timeScale;
-        emoving = true;
-      }
-      if (enemy.x > player.x + 10) {
-        enemy.x -= enemy.speed * timeScale;
-        emoving = true;
-      }
-
-      if (emoving) enemy.walkAnim += 0.18 * timeScale;
-
-      const dist = Math.abs(enemy.x - player.x);
-
-      if (dist < 70 && enemy.hitCooldown <= 0) {
-        let dmg = 5;
-        if (enemy.type === "fast") dmg = 4;
-        if (enemy.type === "tank") dmg = 9;
-
-        player.hp -= dmg;
-        enemy.hitCooldown = enemy.type === "fast" ? 50 : 75;
-
-        spawnSplash(player.x + player.width / 2, player.y + 70, 8);
-        player.x += (enemy.x < player.x ? 25 : -25);
+          canvas.classList.add("hitShake");
+          setTimeout(() => canvas.classList.remove("hitShake"), 250);
+        }
       }
     });
-
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
-      p.vy += 0.6 * timeScale;
-      p.x += p.vx * timeScale;
-      p.y += p.vy * timeScale;
-      p.life -= 1 * timeScale;
-
-      if (p.y > groundY) {
-        p.y = groundY;
-        p.vy *= -0.25;
-        p.vx *= 0.7;
-      }
-
-      if (p.life <= 0) particles.splice(i, 1);
-    }
-
-    if (player.hp <= 0) player.hp = 0;
-
-    updateCamera();
   }
 
-  // -------------------------
-  // DRAW HELPERS
-  // -------------------------
-  function drawNYBackground() {
-    const sky = ctx.createLinearGradient(0, 0, 0, world.height);
-    sky.addColorStop(0, "#ff914d");
-    sky.addColorStop(0.5, "#ff4f7b");
-    sky.addColorStop(1, "#2a1d5f");
-
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, world.width, world.height);
-
-    ctx.fillStyle = "rgba(255, 220, 120, 0.9)";
-    ctx.beginPath();
-    ctx.arc(650, 200, 110, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = "rgba(0,0,0,0.65)";
-    skylineBuildings.forEach(b => {
-      ctx.fillRect(b.x, groundY - b.h, 34, b.h);
-    });
-
-    ctx.fillStyle = "rgba(255,255,180,0.45)";
-    skylineWindows.forEach(w => {
-      ctx.fillRect(w.x, w.y, 4, 4);
+  function updateEnemies(){
+    enemies.forEach((e, idx) => {
+      if(!e.alive){
+        // dead body falls away
+        e.y += 2.8;
+        if(e.y > h + 200) enemies.splice(idx, 1);
+      }
     });
   }
 
-  function drawShadow(x, y, w) {
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.beginPath();
-    ctx.ellipse(x + w/2, y + (w > 60 ? 138 : 118), 22 + (w > 60 ? 8 : 0), 8, 0, 0, Math.PI * 2);
-    ctx.fill();
+  function drawEnemies(){
+    enemies.forEach(e => {
+      const hurt = e.hitTimer;
+
+      drawRockstarFighter(e.x, e.y, e.w, e.h, e.dir, e.type, hurt, true);
+
+      // enemy hp bar (small)
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(e.x, e.y - 12, e.w, 6);
+
+      const pct = Math.max(0, e.hp / e.maxHp);
+      ctx.fillStyle = "rgba(255,60,60,0.9)";
+      ctx.fillRect(e.x, e.y - 12, e.w * pct, 6);
+      ctx.restore();
+    });
   }
 
-  function drawCharacter(entity, shirtColor, walkAnim) {
-    const x = entity.x;
-    const y = entity.y;
-    const w = entity.width;
-    const h = entity.height;
+  function drawPlayer(){
+    drawRockstarFighter(player.x, player.y, player.w, player.h, player.facing, "jacket", player.hurtTimer, false);
 
-    const legSwing = Math.sin(walkAnim) * 6;
+    // kick animation (leg)
+    if(player.attackType === "kick"){
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = "rgba(20,20,20,0.95)";
 
-    drawShadow(x, y, w);
+      const lx = player.facing === 1 ? player.x + player.w - 5 : player.x - 30;
+      const ly = player.y + 65;
 
-    // nohy
-    ctx.fillStyle = "#222";
-    ctx.fillRect(x + 10 + legSwing, y + h - 40, 12, 40);
-    ctx.fillRect(x + w - 22 - legSwing, y + h - 40, 12, 40);
+      ctx.fillRect(lx, ly, 35 * player.facing, 12);
 
-    // tělo
-    ctx.fillStyle = shirtColor;
-    ctx.fillRect(x + 5, y + 40, w - 10, 55);
-
-    // ruce
-    ctx.fillStyle = "#f2c9a0";
-    ctx.fillRect(x - 5, y + 50, 12, 40);
-    ctx.fillRect(x + w - 7, y + 50, 12, 40);
-
-    // hlava
-    ctx.fillStyle = "#f2c9a0";
-    ctx.beginPath();
-    ctx.arc(x + w/2, y + 20, 18, 0, Math.PI * 2);
-    ctx.fill();
-
-    // oči
-    ctx.fillStyle = "black";
-    ctx.fillRect(x + w/2 - 8, y + 15, 4, 4);
-    ctx.fillRect(x + w/2 + 4, y + 15, 4, 4);
-  }
-
-  function drawBat() {
-    ctx.strokeStyle = "#8b5a2b";
-    ctx.lineWidth = 10;
-
-    let handX = player.x + player.width / 2;
-    let handY = player.y + 70;
-
-    let baseAngle = player.facing === 1 ? -0.4 : Math.PI + 0.4;
-
-    let swingAngle = 0;
-    if (player.attackAnim > 0) {
-      let progress = (12 - player.attackAnim) / 12;
-      swingAngle = Math.sin(progress * Math.PI) * 2.2;
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.fillRect(lx, ly - 10, 40 * player.facing, 5);
+      ctx.restore();
     }
 
-    let angle = baseAngle + (player.facing === 1 ? swingAngle : -swingAngle);
-
-    const batLength = 90;
-
-    let batX2 = handX + Math.cos(angle) * batLength;
-    let batY2 = handY + Math.sin(angle) * batLength;
-
-    ctx.beginPath();
-    ctx.moveTo(handX, handY);
-    ctx.lineTo(batX2, batY2);
-    ctx.stroke();
-
-    // hlavička baseballky
-    ctx.fillStyle = "#6b3f1e";
-    ctx.beginPath();
-    ctx.arc(batX2, batY2, 8, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  function drawHealthBar(x, y, w, h, hp, maxHp) {
-    ctx.fillStyle = "rgba(0,0,0,0.7)";
-    ctx.fillRect(x, y, w, h);
-
-    const fill = Math.max(0, (hp / maxHp) * w);
-    ctx.fillStyle = "lime";
-    ctx.fillRect(x, y, fill, h);
-  }
-
-  function drawUI() {
-    drawHealthBar(15, 15, 180, 14, player.hp, 100);
-
-    ctx.fillStyle = "white";
-    ctx.font = "16px Arial";
-    ctx.fillText("SCORE: " + score, 15, 55);
-
-    if (combo > 1) {
-      ctx.fillStyle = "yellow";
-      ctx.font = "18px Arial";
-      ctx.fillText("COMBO x" + combo, 15, 80);
+    // bat swing animation
+    if(player.attackType === "bat"){
+      const px = player.x + player.w/2;
+      const py = player.y + 60;
+      drawBatSwing(px, py, player.facing, Math.min(1, player.batSwing));
     }
   }
 
-  function drawKO() {
-    if (koTextTimer <= 0) return;
-
-    const scale = 1 + Math.sin((40 - koTextTimer) / 40 * Math.PI) * 0.25;
-
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2 - 90);
-    ctx.scale(scale, scale);
-
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.font = "70px Arial";
-    ctx.fillText("KO!", -65, 0);
-
-    ctx.fillStyle = "red";
-    ctx.font = "70px Arial";
-    ctx.fillText("KO!", -68, -4);
-
-    ctx.restore();
+  function drawVignette(){
+    const g = ctx.createRadialGradient(w/2, h/2, 80, w/2, h/2, Math.max(w,h));
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(0.65, "rgba(0,0,0,0.08)");
+    g.addColorStop(1, "rgba(0,0,0,0.75)");
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
   }
 
-  // -------------------------
-  // DRAW
-  // -------------------------
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  function updateHUD(){
+    hpText.textContent = Math.floor(player.hp);
+    const pct = Math.max(0, player.hp / player.maxHp);
+    hpBar.style.width = (pct * 100) + "%";
+  }
 
-    let shakeX = 0;
-    let shakeY = 0;
-    if (camera.shake > 0) {
-      shakeX = (Math.random() - 0.5) * camera.shake;
-      shakeY = (Math.random() - 0.5) * camera.shake;
+  function endGame(){
+    running = false;
+    finalScoreEl.textContent = score;
+    gameOverScreen.style.display = "flex";
+  }
+
+  function restartGame(){
+    score = 0;
+    wave = 1;
+    frame = 0;
+
+    enemies = [];
+    blood = [];
+    textPop = [];
+
+    player.hp = 100;
+    player.x = w/2 - player.w/2;
+    player.attackTimer = 0;
+    player.attackType = null;
+    player.hurtTimer = 0;
+    player.batSwing = 0;
+
+    scoreEl.textContent = score;
+    waveEl.textContent = wave;
+    hpBar.style.width = "100%";
+
+    gameOverScreen.style.display = "none";
+    running = true;
+
+    spawnWave();
+  }
+
+  window.restartGame = restartGame;
+
+  function checkWave(){
+    const aliveCount = enemies.filter(e => e.alive).length;
+
+    if(aliveCount === 0 && running){
+      wave++;
+      waveEl.textContent = wave;
+      spawnWave();
+    }
+  }
+
+  function loop(){
+    frame++;
+
+    if(running){
+      updatePlayer();
+      enemyAI();
+      updateEnemies();
+      updateBlood();
+      updateTextPop();
+      updateHUD();
+      checkWave();
     }
 
     ctx.save();
-    ctx.scale(camera.zoom, camera.zoom);
-    ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
 
-    drawNYBackground();
+    if(camShake > 0){
+      ctx.translate(rand(-camShake, camShake), rand(-camShake, camShake));
+      camShake *= 0.88;
+    }
 
-    ctx.fillStyle = "#444";
-    ctx.fillRect(0, groundY, world.width, world.height - groundY);
-
-    drawCharacter(player, "#ff3333", player.walkAnim);
-    drawBat();
-
-    enemies.forEach(enemy => {
-      if (!enemy.alive) return;
-      drawCharacter(enemy, enemy.color, enemy.walkAnim);
-      drawHealthBar(enemy.x, enemy.y - 20, 60, 10, enemy.hp, enemy.maxHp);
-    });
-
-    ctx.fillStyle = "red";
-    particles.forEach(p => {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
-    });
+    drawStreet();
+    drawBlood();
+    drawEnemies();
+    drawPlayer();
+    drawTextPop();
 
     ctx.restore();
 
-    drawUI();
-    drawKO();
+    drawVignette();
 
-    if (slowMotionTimer > 0) {
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.font = "36px Arial";
-      ctx.fillText("SLOMO!", canvas.width / 2 - 70, 90);
-    }
-
-    if (player.hp <= 0) {
-      ctx.fillStyle = "rgba(0,0,0,0.75)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = "white";
-      ctx.font = "42px Arial";
-      ctx.fillText("GAME OVER", canvas.width / 2 - 120, canvas.height / 2);
-
-      ctx.font = "22px Arial";
-      ctx.fillText("Final Score: " + score, canvas.width / 2 - 85, canvas.height / 2 + 45);
-    }
+    requestAnimationFrame(loop);
   }
 
-  function gameLoop() {
-    update();
-    draw();
-    requestAnimationFrame(gameLoop);
-  }
+  // INPUT
+  startBtn.addEventListener("click", () => {
+    startScreen.style.display = "none";
+    setTimeout(() => {
+      running = true;
+      player.x = w/2 - player.w/2;
+      spawnWave();
+    }, 250);
+  });
 
-  gameLoop();
+  leftBtn.addEventListener("touchstart", (e)=>{ e.preventDefault(); holdingLeft = true; });
+  leftBtn.addEventListener("touchend", ()=> holdingLeft = false);
+  leftBtn.addEventListener("mousedown", ()=> holdingLeft = true);
+  leftBtn.addEventListener("mouseup", ()=> holdingLeft = false);
+  leftBtn.addEventListener("mouseleave", ()=> holdingLeft = false);
+
+  rightBtn.addEventListener("touchstart", (e)=>{ e.preventDefault(); holdingRight = true; });
+  rightBtn.addEventListener("touchend", ()=> holdingRight = false);
+  rightBtn.addEventListener("mousedown", ()=> holdingRight = true);
+  rightBtn.addEventListener("mouseup", ()=> holdingRight = false);
+  rightBtn.addEventListener("mouseleave", ()=> holdingRight = false);
+
+  kickBtn.addEventListener("touchstart", (e)=>{ e.preventDefault(); doKick(); });
+  batBtn.addEventListener("touchstart", (e)=>{ e.preventDefault(); doBat(); });
+
+  kickBtn.addEventListener("mousedown", doKick);
+  batBtn.addEventListener("mousedown", doBat);
+
+  // init
+  player.y = floorY();
+  requestAnimationFrame(loop);
 </script>
 
 </body>
