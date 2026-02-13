@@ -95,7 +95,6 @@
   const controlsHeight = 160;
   let groundY = canvas.height - controlsHeight - 70;
 
-  // Slowmotion efekt při zabití
   let slowMotionTimer = 0;
 
   const gravity = 1;
@@ -139,28 +138,37 @@
     velocityY: 0,
     onGround: true,
     hp: 100,
-    facing: 1, // 1 doprava, -1 doleva
+    facing: 1,
     attackCooldown: 0
   };
 
-  const enemies = [
-    {
-      x: 750,
+  // Více nepřátel
+  const enemies = [];
+
+  function spawnEnemy() {
+    const side = Math.random() < 0.5 ? "left" : "right";
+
+    enemies.push({
+      x: side === "left" ? -50 : canvas.width + 50,
       y: groundY - 80,
       width: 55,
       height: 90,
-      hp: 60,
-      speed: 2.5,
+      hp: 50,
+      speed: 2 + Math.random() * 1.5,
       alive: true,
-      weapon: "knife",
       hitCooldown: 0
-    }
-  ];
+    });
+  }
 
-  // Krevní částice (stylizované)
+  // spawn start
+  for (let i = 0; i < 4; i++) {
+    spawnEnemy();
+  }
+
+  // Komiksové částice (kečup džem efekt)
   const particles = [];
 
-  function spawnBlood(x, y, amount = 40) {
+  function spawnSplash(x, y, amount = 40) {
     for (let i = 0; i < amount; i++) {
       particles.push({
         x: x,
@@ -184,15 +192,13 @@
 
   function playerAttack() {
     if (player.attackCooldown > 0) return;
+    player.attackCooldown = 22;
 
-    player.attackCooldown = 25;
-
-    // Hitbox baseballky před hráčem
     const batHitbox = {
-      x: player.facing === 1 ? player.x + player.width : player.x - 60,
+      x: player.facing === 1 ? player.x + player.width : player.x - 70,
       y: player.y + 20,
-      width: 60,
-      height: 40
+      width: 70,
+      height: 45
     };
 
     enemies.forEach(enemy => {
@@ -202,19 +208,24 @@
         enemy.hp -= 25;
 
         // Knockback
-        enemy.x += player.facing * 35;
+        enemy.x += player.facing * 40;
 
-        // Krevní prsknutí
-        spawnBlood(enemy.x + enemy.width / 2, enemy.y + 30, 25);
+        // šplích (komiks)
+        spawnSplash(enemy.x + enemy.width / 2, enemy.y + 40, 25);
 
         if (enemy.hp <= 0) {
           enemy.alive = false;
 
-          // Mega gejzír
-          spawnBlood(enemy.x + enemy.width / 2, enemy.y + 20, 120);
+          // mega splash
+          spawnSplash(enemy.x + enemy.width / 2, enemy.y + 20, 120);
 
-          // Slowmotion efekt
-          slowMotionTimer = 60;
+          // slowmotion
+          slowMotionTimer = 50;
+
+          // po chvíli respawn nový nepřítel
+          setTimeout(() => {
+            spawnEnemy();
+          }, 800);
         }
       }
     });
@@ -223,11 +234,9 @@
   function update() {
     groundY = canvas.height - controlsHeight - 70;
 
-    let timeScale = slowMotionTimer > 0 ? 0.35 : 1;
-
+    let timeScale = slowMotionTimer > 0 ? 0.4 : 1;
     if (slowMotionTimer > 0) slowMotionTimer--;
 
-    // Cooldowny
     if (player.attackCooldown > 0) player.attackCooldown -= 1 * timeScale;
 
     // Pohyb hráče
@@ -247,9 +256,7 @@
     }
 
     // Útok
-    if (input.attack) {
-      playerAttack();
-    }
+    if (input.attack) playerAttack();
 
     // Gravitace
     player.velocityY += gravity * timeScale;
@@ -268,7 +275,7 @@
       player.x = canvas.width - player.width;
     }
 
-    // Nepřítel AI (jde za tebou)
+    // AI nepřátel
     enemies.forEach(enemy => {
       if (!enemy.alive) return;
 
@@ -277,17 +284,18 @@
       if (enemy.x < player.x - 10) enemy.x += enemy.speed * timeScale;
       if (enemy.x > player.x + 10) enemy.x -= enemy.speed * timeScale;
 
-      // Útok nepřítele když je blízko
+      // Útok když blízko (bez zbraní, jen strkání)
       const dist = Math.abs(enemy.x - player.x);
-      if (dist < 70 && enemy.hitCooldown <= 0) {
-        player.hp -= 10;
-        enemy.hitCooldown = 50;
 
-        // Krev z hráče
-        spawnBlood(player.x + player.width / 2, player.y + 40, 20);
+      if (dist < 60 && enemy.hitCooldown <= 0) {
+        player.hp -= 5;
+        enemy.hitCooldown = 60;
 
-        // Knockback hráče
-        player.x += (enemy.x < player.x ? 30 : -30);
+        // mini splash na hráči (komiks)
+        spawnSplash(player.x + player.width / 2, player.y + 50, 12);
+
+        // knockback hráče
+        player.x += (enemy.x < player.x ? 25 : -25);
       }
     });
 
@@ -299,14 +307,18 @@
       p.y += p.vy * timeScale;
       p.life -= 1 * timeScale;
 
-      // odraz od země
       if (p.y > groundY) {
         p.y = groundY;
-        p.vy *= -0.3;
+        p.vy *= -0.25;
         p.vx *= 0.7;
       }
 
       if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // GAME OVER jednoduchý
+    if (player.hp <= 0) {
+      player.hp = 0;
     }
   }
 
@@ -323,25 +335,25 @@
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Pozadí
+    // pozadí
     ctx.fillStyle = "#d9d9d9";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Zem
+    // zem
     ctx.fillStyle = "green";
     ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
 
-    // Hráč
+    // hráč
     ctx.fillStyle = "red";
     ctx.fillRect(player.x, player.y, player.width, player.height);
 
-    // Baseballka
+    // baseballka
     ctx.strokeStyle = "brown";
     ctx.lineWidth = 8;
 
     let batX1 = player.x + player.width / 2;
     let batY1 = player.y + 40;
-    let batX2 = batX1 + player.facing * 60;
+    let batX2 = batX1 + player.facing * 65;
     let batY2 = batY1 - 10;
 
     ctx.beginPath();
@@ -349,28 +361,24 @@
     ctx.lineTo(batX2, batY2);
     ctx.stroke();
 
-    // Nepřátelé
+    // nepřátelé (bez zbraní)
     enemies.forEach(enemy => {
       if (!enemy.alive) return;
 
       ctx.fillStyle = "black";
       ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
 
-      // Zbraň (nůž)
-      ctx.strokeStyle = "silver";
-      ctx.lineWidth = 6;
+      // oči (aby byli srandovní)
+      ctx.fillStyle = "white";
+      ctx.fillRect(enemy.x + 12, enemy.y + 20, 10, 10);
+      ctx.fillRect(enemy.x + 32, enemy.y + 20, 10, 10);
 
-      ctx.beginPath();
-      ctx.moveTo(enemy.x + enemy.width / 2, enemy.y + 40);
-      ctx.lineTo(enemy.x + enemy.width / 2 - 35, enemy.y + 35);
-      ctx.stroke();
-
-      // HP bar nepřítele
-      drawHealthBar(enemy.x, enemy.y - 18, 60, 10, enemy.hp, 60);
+      // HP bar
+      drawHealthBar(enemy.x, enemy.y - 18, 60, 10, enemy.hp, 50);
     });
 
-    // Krev (částice)
-    ctx.fillStyle = "darkred";
+    // splash částice
+    ctx.fillStyle = "red";
     particles.forEach(p => {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
@@ -378,19 +386,26 @@
     });
 
     // HP hráče
-    drawHealthBar(20, 20, 200, 18, player.hp, 100);
+    drawHealthBar(20, 20, 220, 18, player.hp, 100);
 
-    // Slowmotion text
+    ctx.fillStyle = "black";
+    ctx.font = "18px Arial";
+    ctx.fillText("⚾ MLÁTIČKA - ARKÁDA PRO DĚTI", 20, 60);
+
     if (slowMotionTimer > 0) {
       ctx.fillStyle = "rgba(0,0,0,0.5)";
       ctx.font = "50px Arial";
       ctx.fillText("SLOMO!", canvas.width / 2 - 100, 120);
     }
 
-    // Debug info
-    ctx.fillStyle = "black";
-    ctx.font = "18px Arial";
-    ctx.fillText("⚾ Baseballka | HIT = útok", 20, 60);
+    if (player.hp <= 0) {
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "white";
+      ctx.font = "60px Arial";
+      ctx.fillText("GAME OVER", canvas.width / 2 - 170, canvas.height / 2);
+    }
   }
 
   function gameLoop() {
